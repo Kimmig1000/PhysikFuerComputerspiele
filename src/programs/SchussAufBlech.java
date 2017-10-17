@@ -50,6 +50,20 @@ public class SchussAufBlech implements WindowListener, GLEventListener, KeyListe
 	boolean stopped = false;
 
 	// für viereck
+	
+	// for the case when y reaches ybotton, we need to reset these values
+	final double startPositionXForReset = 8;
+	final double startPositionYForReset = 5;
+	
+	// we will use these values for calculating
+	double startPositionX = startPositionXForReset;
+	double startPositionY = startPositionYForReset;
+	
+	double sizeRectangleLength = 1;
+	double sizeRectangleHeight = 2;
+	
+	double velocity = -3.3;
+	
 	//
 
 	// --------- Methoden ----------------------------------
@@ -159,10 +173,18 @@ public class SchussAufBlech implements WindowListener, GLEventListener, KeyListe
 			vy = v0y;
 		}
 		
-		zeichneRechteck(gl, 4, 2, 1, 2);
+		zeichneRechteck(gl, (float)startPositionX, (float)startPositionY, (float)sizeRectangleLength, (float)sizeRectangleHeight);
 		
 		// y = y + v*dt;
 		// v = v + -g*dt;
+		startPositionY = startPositionY + velocity * dt;
+		
+		//falls startPosition Y in negativen Bereich kommt:
+		if (startPositionY < ybottom){
+			startPositionY = startPositionYForReset;
+		}
+		
+		
 	}
 
 
