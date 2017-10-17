@@ -2,6 +2,11 @@ package programs;
 
 import java.awt.*;
 import java.awt.event.*;
+
+import javax.swing.JDialog;
+import javax.swing.JFrame;
+import javax.swing.JOptionPane;
+
 import com.jogamp.opengl.*;
 import com.jogamp.opengl.awt.*;
 import com.jogamp.opengl.util.*;
@@ -32,6 +37,9 @@ public class SchussAufBlech implements WindowListener, GLEventListener, KeyListe
 	float xleft = -10, xright = 10; // ViewingVol
 	float znear = -100, zfar = 100;
 
+	JFrame parent = new JFrame();
+	// Circle values 
+	
 	final double g = 9.81; // Erdbeschleunigung
 	final double m = 1; // Masse
 	double v0x = 8; // Anfangsgeschwindigkeit
@@ -49,7 +57,7 @@ public class SchussAufBlech implements WindowListener, GLEventListener, KeyListe
 	double dt = 0.01; // Zeitschritt
 	boolean stopped = false;
 
-	// für viereck
+	// Rectangle
 	
 	// for the case when y reaches ybotton, we need to reset these values
 	final double startPositionXForReset = 8;
@@ -62,10 +70,12 @@ public class SchussAufBlech implements WindowListener, GLEventListener, KeyListe
 	double sizeRectangleLength = 1;
 	double sizeRectangleHeight = 2;
 	
-	double velocity = -3.3;
+	// Velocity, with which the rectangle moves to the x Koordinate (decreases y Koordinate)
+	final double velocity = -9.3;
 	
-	//
-
+	// only 20 chances
+	int counter = 0;
+	
 	// --------- Methoden ----------------------------------
 
 	public SchussAufBlech() // Konstruktor
@@ -140,6 +150,9 @@ public class SchussAufBlech implements WindowListener, GLEventListener, KeyListe
 
 	@Override
 	public void display(GLAutoDrawable drawable) {
+		if (stopped){
+		
+		
 		GL3 gl = drawable.getGL().getGL3();
 		gl.glClear(GL3.GL_COLOR_BUFFER_BIT); // Bildschirm loeschen
 		mygl.setColor(0, 1, 0); // Farbe der Vertices
@@ -159,14 +172,15 @@ public class SchussAufBlech implements WindowListener, GLEventListener, KeyListe
 		
 		
 		// eulerischer Algorythmus 2D
-		if (stopped)
-			return;
+		
 
 		x = x + vx * dt;
 		y = y + vy * dt;
 		vx = vx + ax * dt;
 		vy = vy + ay * dt;
-		if (y < ybottom) {
+		if (y < ybottom || x > xright) {
+			counter++;
+			stopped = false;
 			x = x0;
 			y = y0;
 			vx = v0x;
@@ -182,8 +196,24 @@ public class SchussAufBlech implements WindowListener, GLEventListener, KeyListe
 		//falls startPosition Y in negativen Bereich kommt:
 		if (startPositionY < ybottom){
 			startPositionY = startPositionYForReset;
+			
 		}
 		
+		if (counter > 3){
+			   JDialog.setDefaultLookAndFeelDecorated(true);
+			    int response = JOptionPane.showConfirmDialog(null, "3 Versuche gehabt. Neu starten?", "Confirm",
+			        JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
+			    if (response == JOptionPane.NO_OPTION) {
+			      System.out.println("No button clicked");
+			      System.exit(1);
+			    } else if (response == JOptionPane.YES_OPTION) {
+			      System.out.println("Yes button clicked");
+			      counter = 0;
+			    } else if (response == JOptionPane.CLOSED_OPTION) {
+			      System.exit(1);
+			    }
+		}
+		}
 		
 	}
 
