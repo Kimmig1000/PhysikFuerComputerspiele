@@ -1,6 +1,5 @@
 package programs;
 
-//  -------------   JOGL EllipseMitGedrehtenHalbachsen-Programm  -------------------
 import java.awt.*;
 import java.awt.event.*;
 import com.jogamp.opengl.*;
@@ -9,6 +8,8 @@ import com.jogamp.opengl.util.*;
 import ch.fhnw.util.math.*;
 
 import ch.fhnw.util.math.Mat4;
+import programs.MyGLBase1;
+import programs.MyShaders;
 
 public class SchussAufBlech implements WindowListener, GLEventListener, KeyListener {
 
@@ -49,14 +50,7 @@ public class SchussAufBlech implements WindowListener, GLEventListener, KeyListe
 	boolean stopped = false;
 
 	// für viereck
-	  //Brett-Param
-    double a = 1.1; //Länge 1.1m
-    double b = 0.5; //Dicke 1cm
-    
-    double phi0 = Math.toRadians(35); // Winkel Brett
-    double w0 = 0;
-    double phi = phi0; //Winkel Brett
-    double w = w0; //Omega
+	//
 
 	// --------- Methoden ----------------------------------
 
@@ -78,17 +72,21 @@ public class SchussAufBlech implements WindowListener, GLEventListener, KeyListe
 		f.setVisible(true);
 		f.addKeyListener(this);
 		canvas.addKeyListener(this);
-	};
+	}	
+	
+	// Objekte
 
-	public void zeichneRechteck(GL3 gl, float w, float h) {
-		mygl.rewindBuffer(gl);
-		mygl.putVertex(0, -h / 2, 0);
-		mygl.putVertex(w, -h / 2, 0);
-		mygl.putVertex(w, h / 2, 0);
-		mygl.putVertex(0, h / 2, 0);
-		int nVertices = 4;
+	public void zeichneRechteck(GL3 gl, float x1, float y1, float width, float height) {
+		mygl.rewindBuffer(gl); // Vertex-Buffer zuruecksetzen
+		// 1. Paramter x-Koordinate; 2. Paramter y-Koordinate; 3. Paramter z-Koordinate -> 
+		// hier gleich 0, da nur 2Dimensional
+		mygl.putVertex(x1, y1, 0);
+		mygl.putVertex(x1 + width, y1, 0);
+		mygl.putVertex(x1, y1 + height, 0);
+		mygl.putVertex(x1 + width, y1 + height, 0);
+
 		mygl.copyBuffer(gl);
-		gl.glDrawArrays(GL3.GL_TRIANGLE_FAN, 0, nVertices);
+		mygl.drawArrays(gl, GL3.GL_TRIANGLE_STRIP);
 	}
 
 	public void zeichneKreis(GL3 gl, float r, float xm, float ym, int nPkte) {
@@ -107,17 +105,7 @@ public class SchussAufBlech implements WindowListener, GLEventListener, KeyListe
 		mygl.copyBuffer(gl);
 		mygl.drawArrays(gl, GL3.GL_TRIANGLE_FAN);
 	}
-	/*
-	 * public void zeichneViereck(GL3 gl, float a, float b, float c, float d){
-	 * vb.rewindBuffer(gl); vb.putVertex(a, b,0);
-	 * 
-	 * 
-	 * 
-	 * vb.copyBuffer(gl); vb.drawArrays(gl, GL3.GL_TRIANGLES);
-	 * 
-	 * }
-	 */
-
+	
 	// ---------- OpenGL-Events ---------------------------
 
 	@Override
@@ -143,20 +131,19 @@ public class SchussAufBlech implements WindowListener, GLEventListener, KeyListe
 		mygl.setColor(0, 1, 0); // Farbe der Vertices
 
 		double alpha = 0;
-		// Quader viereck = new Quader(mygl);
-		// viereck.zeichne(gl, a, b, c, true);
 
 		M = Mat4.ID;
 		mygl.setM(gl, M);
 		zeichneKreis(gl, 0.2f, (float) x, (float) y, 20);
-		zeichneRechteck(gl, (float)a, (float)b);
-		
+
 		M = Mat4.translate((float) x, (float) y, 0);
 		alpha = (Math.atan(vy / vx)) * (180 / Math.PI);
-		M = M.postMultiply(Mat4.rotate((float) alpha, 0, 0, 1));
-		mygl.setM(gl, M);
+		//M = M.postMultiply(Mat4.rotate((float) alpha, 0, 0, 1));
+		//mygl.setM(gl, M);
 		// zeichneSpeer(gl, 1.2f, 0.04f, 0.2f);
-
+		
+		
+		
 		// eulerischer Algorythmus 2D
 		if (stopped)
 			return;
@@ -171,33 +158,14 @@ public class SchussAufBlech implements WindowListener, GLEventListener, KeyListe
 			vx = v0x;
 			vy = v0y;
 		}
-
+		
+		zeichneRechteck(gl, 4, 2, 1, 2);
+		
 		// y = y + v*dt;
 		// v = v + -g*dt;
 	}
 
-	public void zeichneDreieck(GL3 gl, float x1, float y1, float x2, float y2, float x3, float y3) {
-		mygl.rewindBuffer(gl); // Vertex-Buffer zuruecksetzen
-		mygl.putVertex(x1, y1, 0); // Eckpunkte in VertexArray speichern
-		mygl.putVertex(x2, y2, 0);
-		mygl.putVertex(x3, y3, 0);
-		mygl.copyBuffer(gl);
-		mygl.drawArrays(gl, GL3.GL_TRIANGLES);
-	}
 
-	public void zeichneSpeer(GL3 gl, float a, float b, float c) {
-		mygl.rewindBuffer(gl);
-		// Viereck zeichnen
-		mygl.putVertex(-a, -b, 0);
-		mygl.putVertex(a, -b, 0);
-		mygl.putVertex(a, b, 0);
-		mygl.putVertex(-a, b, 0);
-
-		mygl.copyBuffer(gl);
-		mygl.drawArrays(gl, GL3.GL_TRIANGLE_FAN);
-		zeichneDreieck(gl, a, -b, a + c, 0, a, b);
-		zeichneDreieck(gl, -a, b, -(a + c), 0, -a, -b);
-	}
 
 	@Override
 	public void reshape(GLAutoDrawable drawable, int x, int y, int width, int height) {
