@@ -1,14 +1,15 @@
 package programs;
 
+
 //  -------------   JOGL EllipseMitGedrehtenHalbachsen-Programm  -------------------
 import java.awt.*;
 import java.awt.event.*;
+import java.util.Stack;
+
 import com.jogamp.opengl.*;
 import com.jogamp.opengl.awt.*;
 import com.jogamp.opengl.util.*;
 import ch.fhnw.util.math.*;
-
-import ch.fhnw.util.math.Mat4;
 
 public class Kepler implements WindowListener, GLEventListener, KeyListener {
 
@@ -31,12 +32,13 @@ public class Kepler implements WindowListener, GLEventListener, KeyListener {
 	float xleft = -60, xright = 60; // ViewingVol
 	float znear = -100, zfar = 100;
 
-	//final double g = 9.81; // Erdbeschleunigung
+	// final double g = 9.81; // Erdbeschleunigung
 	final double m = 1; // Masse
-	double v0x = 8; // Anfangsgeschwindigkeit
-	double v0y = 10; // Anfangsgeschwindigkeit
+	double v0x = 0; // Anfangsgeschwindigkeit
+	double x0 = 42;
+	double v0y = Math.sqrt(GM / x0); // Anfangsgeschwindigkeit
 	// Zum zurücksetzen
-	double x0 = -8;
+
 	double y0 = 0;
 	// ---------------
 	double x = x0;
@@ -45,19 +47,32 @@ public class Kepler implements WindowListener, GLEventListener, KeyListener {
 	double vy = v0y;
 	double ax = 0;
 	double ay = -g;
-	double dt = 0.01; // Zeitschritt
+	double dt = 120; // Zeitschritt
 	boolean stopped = false;
-	//für 
+	// für Erde
 	static double g = 9.81e-6; // Erdbeschl. [E/s^2]
-	static double rE = 6.378;  // Erdradius [e]
-	static double GM = g*rE*rE;// G*M
-	double h = 20; 			   // Höhe Satellit	
+	static double rE = 6.378; // Erdradius [e]
+	static double GM = g * rE * rE;// G*M
+	double h = 20; // Höhe Satellit
+	float phi = 1;
 	
 	// für viereck
 	float a = (float) 0.4;
 	float b = (float) 0.8;
 	float c = (float) 0.0;
 
+	// LookAt-Parameter fuer Kamera-System
+	Vec3 A = new Vec3(0, 0, 50); // Kamera-Pos. (Auge)
+	Vec3 B = new Vec3(0, 0, 0); // Zielpunkt
+	Vec3 up = new Vec3(0, 1, 0); // up-Richtung
+
+	// Winkelevaluationen
+	Stack<Mat4> matrixStack = new Stack<Mat4>();
+
+	float elevation = 10;
+	float azimut = 40;
+	
+	RotKoerper rotk;
 	// --------- Methoden ----------------------------------
 
 	public Kepler() // Konstruktor
@@ -79,7 +94,6 @@ public class Kepler implements WindowListener, GLEventListener, KeyListener {
 		f.addKeyListener(this);
 		canvas.addKeyListener(this);
 	};
-
 
 	public void zeichneKreis(GL3 gl, float r, float xm, float ym, int nPkte) {
 		double phi = 2 * Math.PI / nPkte;
@@ -124,35 +138,77 @@ public class Kepler implements WindowListener, GLEventListener, KeyListener {
 														// Basis-Funktionen
 		FPSAnimator anim = new FPSAnimator(canvas, 200, true);
 		anim.start();
+		rotk = new RotKoerper(mygl);
+		gl.glEnable(GL3.GL_DEPTH_TEST);
 	}
 
 	@Override
 	public void display(GLAutoDrawable drawable) {
 		GL3 gl = drawable.getGL().getGL3();
-		gl.glClear(GL3.GL_COLOR_BUFFER_BIT); // Bildschirm loeschen
+		gl.glClear(GL3.GL_COLOR_BUFFER_BIT | GL3.GL_DEPTH_BUFFER_BIT); // Bildschirm loeschen
 		mygl.setColor(0, 1, 0); // Farbe der Vertices
-		
-		double alpha = 0;
-		//Quader viereck = new Quader(mygl);
-		//viereck.zeichne(gl, a, b, c, true);
 
-		M=Mat4.ID;
+		double alpha = 0;
+		// Quader viereck = new Quader(mygl);
+		// viereck.zeichne(gl, a, b, c, true);
+		M = Mat4.ID;
 		mygl.setM(gl, M);
+
+		Mat4 R1 = Mat4.rotate(-elevation, 1, 0, 0);
+		Mat4 R2 = Mat4.rotate(azimut, 0, 1, 0);
+		Mat4 R = R1.postMultiply(R2);
+
+		M = Mat4.lookAt(R.transform(A), B, R.transform(up));
+		mygl.setM(gl, M); // Blickrichtung
+		mygl.drawAxis(gl, 50, 50, 50);
+		
+		matrixStack.push(M);
+		
+		// Objektsystem für die Erde
+		M = M.postMultiply(Mat4.rotate(phi, 0,1,0));
+		phi++;
+		mygl.setM(gl, M); // Blickrichtung
+		
+		// Erde zeichnen
+		gl.glEnable(gl.GL_POLYGON_OFFSET_FILL);
+		gl.glPolygonOffset(1, 1);
 		// soll Erde sein
-		zeichneKreis(gl, 0.2f, 0, 0, 20);
+			
 		
-		M= Mat4.translate((float)x,(float)y,0);
-		alpha = (Math.atan(vy/vx)) * (180/Math.PI);
-		M = M.postMultiply(Mat4.rotate((float)alpha, 0,0,1));
-		mygl.setM(gl,M);
+		rotk.zeichneKugel(gl, (float)rE, 20, 20, true);
+		mygl.setColor(1, 0, 0);
+		rotk.zeichneKugel(gl, (float)rE, 20, 20, false);
+		// Erde ende
+		
+		M = matrixStack.pop();
+		mygl.setM(gl, M);
+		M = M.postMultiply(Mat4.rotate(-90, 1,0,0));
+		// drehung um z-Achse
+		M = M.postMultiply(Mat4.rotate(-90, 0,0,1));
+		mygl.setM(gl, M);
+		
+	
+		//zeichneKreis(gl, (float) rE, 0, 0, 20);
+		zeichneKreis(gl, (float) (0.1 * rE), (float) x, (float) y, 20);
+		
+
+		M = Mat4.translate((float) x, (float) y, 0);
+		alpha = (Math.atan(vy / vx)) * (180 / Math.PI);
+		M = M.postMultiply(Mat4.rotate((float) alpha, 0, 0, 1));
+		mygl.setM(gl, M);
 		zeichneSpeer(gl, 1.2f, 0.04f, 0.2f);
-		
+
 		// eulerischer Algorythmus 2D
 		if (stopped)
 			return;
-		
+
 		x = x + vx * dt;
 		y = y + vy * dt;
+		double r = Math.sqrt(x * x + y * y);
+		double r3 = r * r * r;
+		ax = -GM * x / r3;
+		ay = -GM * y / r3;
+
 		vx = vx + ax * dt;
 		vy = vy + ay * dt;
 		if (y < ybottom) {
@@ -161,9 +217,7 @@ public class Kepler implements WindowListener, GLEventListener, KeyListener {
 			vx = v0x;
 			vy = v0y;
 		}
-		
-		
-		
+
 		// y = y + v*dt;
 		// v = v + -g*dt;
 	}
@@ -188,7 +242,7 @@ public class Kepler implements WindowListener, GLEventListener, KeyListener {
 		mygl.copyBuffer(gl);
 		mygl.drawArrays(gl, GL3.GL_TRIANGLE_FAN);
 		zeichneDreieck(gl, a, -b, a + c, 0, a, b);
-		zeichneDreieck(gl, -a, b,-(a + c), 0, -a, -b);
+		zeichneDreieck(gl, -a, b, -(a + c), 0, -a, -b);
 	}
 
 	@Override
@@ -245,12 +299,20 @@ public class Kepler implements WindowListener, GLEventListener, KeyListener {
 		int key = e.getKeyCode();
 		switch (key) {
 		case KeyEvent.VK_UP:
-			v0y += 0.5;
+			elevation++;
 			break;
 		case KeyEvent.VK_DOWN:
-			v0y -= 0.5;
+			elevation--;
+			break;
+		case KeyEvent.VK_LEFT:
+			azimut--;
+			break;
+		case KeyEvent.VK_RIGHT:
+			azimut++;
+			;
 			break;
 		}
+
 	}
 
 	@Override
