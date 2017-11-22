@@ -1,6 +1,5 @@
 package programs;
 
-
 //  -------------   JOGL EllipseMitGedrehtenHalbachsen-Programm  -------------------
 import java.awt.*;
 import java.awt.event.*;
@@ -23,7 +22,7 @@ public class Bumerang implements WindowListener, GLEventListener, KeyListener {
 	int maxVerts = 2048; // max. Anzahl Vertices im Vertex-Array
 	GLCanvas canvas; // OpenGL Window
 	MyGLBase1 mygl; // eigene OpenGL-Basisfunktionen
-	MyGLBase1 vb; // für viereck
+	
 	Mat4 M = Mat4.ID; // Transformationsmatrix
 	Mat4 P = Mat4.ID; // Proj. Matrix
 	// float drehwinkel = 30;
@@ -32,47 +31,23 @@ public class Bumerang implements WindowListener, GLEventListener, KeyListener {
 	float xleft = -60, xright = 60; // ViewingVol
 	float znear = -100, zfar = 100;
 
-	// final double g = 9.81; // Erdbeschleunigung
-	final double m = 1; // Masse
-	double v0x = 0; // Anfangsgeschwindigkeit
-	double x0 = 42;
-	double v0y = Math.sqrt(GM / x0); // Anfangsgeschwindigkeit
-	// Zum zurücksetzen
-
-	double y0 = 0;
-	// ---------------
-	double x = x0;
-	double y = y0;
-	double vx = v0x;
-	double vy = v0y;
-	double ax = 0;
-	double ay = -g;
-	double dt = 120; // Zeitschritt
-	boolean stopped = false;
 	// für Erde
 	static double g = 9.81e-6; // Erdbeschl. [E/s^2]
 	static double rE = 6.378; // Erdradius [e]
 	static double GM = g * rE * rE;// G*M
 	double h = 20; // Höhe Satellit
 	float phi = 1;
-	
-	// für viereck
-	float a = (float) 0.4;
-	float b = (float) 0.8;
-	float c = (float) 0.0;
+
+	double r0 = 7;
 
 	// LookAt-Parameter fuer Kamera-System
 	Vec3 A = new Vec3(0, 0, 50); // Kamera-Pos. (Auge)
 	Vec3 B = new Vec3(0, 0, 0); // Zielpunkt
 	Vec3 up = new Vec3(0, 1, 0); // up-Richtung
 
-	// Winkelevaluationen
-	Stack<Mat4> matrixStack = new Stack<Mat4>();
-
 	float elevation = 10;
 	float azimut = 40;
-	
-	RotKoerper rotk;
+
 	// --------- Methoden ----------------------------------
 
 	public Bumerang() // Konstruktor
@@ -111,16 +86,6 @@ public class Bumerang implements WindowListener, GLEventListener, KeyListener {
 		mygl.copyBuffer(gl);
 		mygl.drawArrays(gl, GL3.GL_TRIANGLE_FAN);
 	}
-	/*
-	 * public void zeichneViereck(GL3 gl, float a, float b, float c, float d){
-	 * vb.rewindBuffer(gl); vb.putVertex(a, b,0);
-	 * 
-	 * 
-	 * 
-	 * vb.copyBuffer(gl); vb.drawArrays(gl, GL3.GL_TRIANGLES);
-	 * 
-	 * }
-	 */
 
 	// ---------- OpenGL-Events ---------------------------
 
@@ -138,111 +103,57 @@ public class Bumerang implements WindowListener, GLEventListener, KeyListener {
 														// Basis-Funktionen
 		FPSAnimator anim = new FPSAnimator(canvas, 200, true);
 		anim.start();
-		//rotk = new RotKoerper(mygl);
-		//gl.glEnable(GL3.GL_DEPTH_TEST);
+		// rotk = new RotKoerper(mygl);
+		gl.glEnable(GL3.GL_DEPTH_TEST);
 	}
 
 	@Override
 	public void display(GLAutoDrawable drawable) {
-		GL3 gl = drawable.getGL().getGL3();
-		gl.glClear(GL3.GL_COLOR_BUFFER_BIT | GL3.GL_DEPTH_BUFFER_BIT); // Bildschirm loeschen
-		mygl.setColor(0, 1, 0); // Farbe der Vertices
 
-		double alpha = 0;
-		// Quader viereck = new Quader(mygl);
-		// viereck.zeichne(gl, a, b, c, true);
-		M = Mat4.ID;
-		mygl.setM(gl, M);
+		GL3 gl = drawable.getGL().getGL3();
+		gl.glClear(GL3.GL_COLOR_BUFFER_BIT | GL3.GL_DEPTH_BUFFER_BIT); // Bildschirm
+																		// loeschen
+
+		Mat4 mSave = mygl.getM();
 
 		Mat4 R1 = Mat4.rotate(-elevation, 1, 0, 0);
 		Mat4 R2 = Mat4.rotate(azimut, 0, 1, 0);
 		Mat4 R = R1.postMultiply(R2);
 
 		M = Mat4.lookAt(R.transform(A), B, R.transform(up));
+
 		mygl.setM(gl, M); // Blickrichtung
+
 		mygl.drawAxis(gl, 50, 50, 50);
-		
-		//matrixStack.push(M);
-		
-		// Objektsystem für die Erde
-		M = M.postMultiply(Mat4.rotate(phi, 0,1,0));
-		phi++;
-		//mygl.setM(gl, M); // Blickrichtung
-		
-		// Erde zeichnen
-		gl.glEnable(gl.GL_POLYGON_OFFSET_FILL);
-		gl.glPolygonOffset(1, 1);
-		// soll Erde sein
-			
-		
-		//rotk.zeichneKugel(gl, (float)rE, 20, 20, true);
-		//mygl.setColor(1, 0, 0);
-		//rotk.zeichneKugel(gl, (float)rE, 20, 20, false);
-		// Erde ende
-		
-		//M = matrixStack.pop();
-		//mygl.setM(gl, M);
-		//M = M.postMultiply(Mat4.rotate(-90, 1,0,0));
-		// drehung um z-Achse
-		//M = M.postMultiply(Mat4.rotate(-90, 0,0,1));
-		//mygl.setM(gl, M);
-		
-	
-		//zeichneKreis(gl, (float) rE, 0, 0, 20);
-		zeichneKreis(gl, (float) (0.1 * rE), (float) x, (float) y, 20);
-		
 
-		M = Mat4.translate((float) x, (float) y, 0);
-		alpha = (Math.atan(vy / vx)) * (180 / Math.PI);
-		M = M.postMultiply(Mat4.rotate((float) alpha, 0, 0, 1));
+		Mat4 M = Mat4.ID;
+
+		// rotation für kreisbewegung
+		M = M.postMultiply(Mat4.rotate((float) phi, 0, 1, 0));
+
+		// versetzen um Radius der Kreisbahn
+		M = M.postMultiply(Mat4.translate((float) r0, 0, 0));
+
+		// rotation, damit der Bumerang nicht genau zum Bahnmittelpunkt schaut
+		M = M.postMultiply(Mat4.rotate((float) 90, 0, 1, 0));
+
+		// Senkrecht stellen des Bumerang
+		M = M.postMultiply(Mat4.rotate((float) 90, 0, 1, 0));
+
+		// Drehung der waagrechten Umlaufbahn
+		M = M.preMultiply(Mat4.rotate((float) -20, 0, 0, 1));
+
 		mygl.setM(gl, M);
-		//zeichneSpeer(gl, 1.2f, 0.04f, 0.2f);
 
-		// eulerischer Algorythmus 2D
-		if (stopped)
-			return;
+		mygl.setColor(1, 0, 0);
 
-		x = x + vx * dt;
-		y = y + vy * dt;
-		double r = Math.sqrt(x * x + y * y);
-		double r3 = r * r * r;
-		ax = -GM * x / r3;
-		ay = -GM * y / r3;
+		zeichneKreis(gl, (float) (0.2 * rE), 0, 0, 60);
 
-		vx = vx + ax * dt;
-		vy = vy + ay * dt;
-		if (y < ybottom) {
-			x = x0;
-			y = y0;
-			vx = v0x;
-			vy = v0y;
-		}
+		mygl.setM(gl, mSave);
 
-		// y = y + v*dt;
-		// v = v + -g*dt;
-	}
+		phi += 7.1;
+		phi = phi % 360;
 
-	public void zeichneDreieck(GL3 gl, float x1, float y1, float x2, float y2, float x3, float y3) {
-		mygl.rewindBuffer(gl); // Vertex-Buffer zuruecksetzen
-		mygl.putVertex(x1, y1, 0); // Eckpunkte in VertexArray speichern
-		mygl.putVertex(x2, y2, 0);
-		mygl.putVertex(x3, y3, 0);
-		mygl.copyBuffer(gl);
-		mygl.drawArrays(gl, GL3.GL_TRIANGLES);
-	}
-
-	public void zeichneSpeer(GL3 gl, float a, float b, float c) {
-		mygl.rewindBuffer(gl);
-		// Viereck zeichnen
-		mygl.putVertex(-a, -b, 0);
-		mygl.putVertex(a, -b, 0);
-		mygl.putVertex(a, b, 0);
-		mygl.putVertex(-a, b, 0);
-
-		mygl.copyBuffer(gl);
-		mygl.drawArrays(gl, GL3.GL_TRIANGLE_FAN);
-		zeichneDreieck(gl, a, -b, a + c, 0, a, b);
-		zeichneDreieck(gl, -a, b, -(a + c), 0, -a, -b);
 	}
 
 	@Override
@@ -321,14 +232,9 @@ public class Bumerang implements WindowListener, GLEventListener, KeyListener {
 
 	}
 
-	// es braucht in diesem Fall nur diese Methode
 	@Override
-	public void keyTyped(KeyEvent e) {
+	public void keyTyped(KeyEvent arg0) {
 		// TODO Auto-generated method stub
-		char code = e.getKeyChar();
-		if (code == 's') {
-			stopped = true;
-		}
 
 	}
 
