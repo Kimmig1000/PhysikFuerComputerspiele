@@ -39,6 +39,9 @@ public class Bumerang implements WindowListener, GLEventListener, KeyListener {
 	float phi = 1;
 
 	double r0 = 7;
+	
+	boolean rotate = false;
+	int radiusBumerang = 1;
 
 	// LookAt-Parameter fuer Kamera-System
 	Vec3 A = new Vec3(0, 0, 50); // Kamera-Pos. (Auge)
@@ -130,16 +133,22 @@ public class Bumerang implements WindowListener, GLEventListener, KeyListener {
 
 		// rotation für kreisbewegung
 		M = M.postMultiply(Mat4.rotate((float) phi, 0, 1, 0));
-
+		//M = M.postMultiply(Mat4.rotate((float) phi, 0, 1, 0));
+		//M = M.postMultiply(Mat4.rotate((float) phi, 0, 1, 0));
+		
 		// versetzen um Radius der Kreisbahn
+		
+		for (int i = 0; i < radiusBumerang; i++){
 		M = M.postMultiply(Mat4.translate((float) r0, 0, 0));
-
+		}
+		
 		// rotation, damit der Bumerang nicht genau zum Bahnmittelpunkt schaut
 		M = M.postMultiply(Mat4.rotate((float) 90, 0, 1, 0));
-
+				
 		// Senkrecht stellen des Bumerang
 		M = M.postMultiply(Mat4.rotate((float) 90, 0, 1, 0));
-
+		
+		
 		// Drehung der waagrechten Umlaufbahn
 		M = M.preMultiply(Mat4.rotate((float) -20, 0, 0, 1));
 
@@ -151,7 +160,7 @@ public class Bumerang implements WindowListener, GLEventListener, KeyListener {
 
 		mygl.setM(gl, mSave);
 
-		phi += 7.1;
+		phi += 3.1;
 		phi = phi % 360;
 
 	}
@@ -233,8 +242,19 @@ public class Bumerang implements WindowListener, GLEventListener, KeyListener {
 	}
 
 	@Override
-	public void keyTyped(KeyEvent arg0) {
+	public void keyTyped(KeyEvent e) {
 		// TODO Auto-generated method stub
+		char code = e.getKeyChar();
+		if (code == 'r') {
+			rotate = true;
+		}
+		if (code == 'a') {
+			radiusBumerang++;
+		}
+		if (code == 'd') {
+			radiusBumerang--;
+		}
+		
 
 	}
 
