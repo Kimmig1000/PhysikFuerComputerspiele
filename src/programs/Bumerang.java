@@ -22,7 +22,7 @@ public class Bumerang implements WindowListener, GLEventListener, KeyListener {
 	int maxVerts = 2048; // max. Anzahl Vertices im Vertex-Array
 	GLCanvas canvas; // OpenGL Window
 	MyGLBase1 mygl; // eigene OpenGL-Basisfunktionen
-	
+
 	Mat4 M = Mat4.ID; // Transformationsmatrix
 	Mat4 P = Mat4.ID; // Proj. Matrix
 	// float drehwinkel = 30;
@@ -37,10 +37,12 @@ public class Bumerang implements WindowListener, GLEventListener, KeyListener {
 	static double GM = g * rE * rE;// G*M
 	double h = 20; // Höhe Satellit
 	float phi = 1;
+	float xturn = 90;
+	float yturn = 1;
+	float turnRate = 0;
 
 	double r0 = 7;
-	
-	boolean rotate = false;
+
 	int radiusBumerang = 1;
 
 	// LookAt-Parameter fuer Kamera-System
@@ -133,22 +135,24 @@ public class Bumerang implements WindowListener, GLEventListener, KeyListener {
 
 		// rotation für kreisbewegung
 		M = M.postMultiply(Mat4.rotate((float) phi, 0, 1, 0));
-		//M = M.postMultiply(Mat4.rotate((float) phi, 0, 1, 0));
-		//M = M.postMultiply(Mat4.rotate((float) phi, 0, 1, 0));
-		
+		// M = M.postMultiply(Mat4.rotate((float) phi, 0, 1, 0));
+		// M = M.postMultiply(Mat4.rotate((float) phi, 0, 1, 0));
+
 		// versetzen um Radius der Kreisbahn
-		
-		for (int i = 0; i < radiusBumerang; i++){
-		M = M.postMultiply(Mat4.translate((float) r0, 0, 0));
+
+		for (int i = 0; i < radiusBumerang; i++) {
+			M = M.postMultiply(Mat4.translate((float) r0, 0, 0));
 		}
-		
+
 		// rotation, damit der Bumerang nicht genau zum Bahnmittelpunkt schaut
-		M = M.postMultiply(Mat4.rotate((float) 90, 0, 1, 0));
-				
+
+		M = M.postMultiply(Mat4.rotate(xturn, 0, yturn, 0));
+		xturn += turnRate;
+		yturn += turnRate;
+
 		// Senkrecht stellen des Bumerang
 		M = M.postMultiply(Mat4.rotate((float) 90, 0, 1, 0));
-		
-		
+
 		// Drehung der waagrechten Umlaufbahn
 		M = M.preMultiply(Mat4.rotate((float) -20, 0, 0, 1));
 
@@ -245,16 +249,19 @@ public class Bumerang implements WindowListener, GLEventListener, KeyListener {
 	public void keyTyped(KeyEvent e) {
 		// TODO Auto-generated method stub
 		char code = e.getKeyChar();
-		if (code == 'r') {
-			rotate = true;
-		}
+
 		if (code == 'a') {
 			radiusBumerang++;
 		}
 		if (code == 'd') {
 			radiusBumerang--;
 		}
-		
+		if (code == 't') {
+			turnRate++;
+		}
+		if (code == 'z') {
+			turnRate--;
+		}
 
 	}
 
