@@ -1,15 +1,14 @@
 package programs;
 
-//-------------   JOGL 3D-Programm  -------------------
+//  -------------   JOGL 3D-Programm  -------------------
 import java.awt.*;
 import java.awt.event.*;
 import com.jogamp.opengl.*;
 import ch.fhnw.util.math.*;
 import com.jogamp.opengl.awt.*;
 import com.jogamp.opengl.util.FPSAnimator;
-import java.util.*;
 
-public class Lorenz implements WindowListener, GLEventListener, KeyListener {
+public class SlerpTest implements WindowListener, GLEventListener, KeyListener {
 
 	// --------- globale Daten ---------------------------
 
@@ -23,58 +22,34 @@ public class Lorenz implements WindowListener, GLEventListener, KeyListener {
 	GLCanvas canvas; // OpenGL Window
 	MyGLBase1 mygl; // OpenGL Basis-Funktionen
 
-	Stack<Mat4> matrixStack = new Stack<>();
 	float elevation = 10;
-	float azimut = 30;
+	float azimut = 40;
+
+	Quader quad;
+	RotKoerper rotk;
 
 	Mat4 M; // ModelView-Matrix
 	Mat4 P; // Projektions-Matrix
 
 	// -------- Viewing-Volume ---------------
-	float left = -60, right = 60;
+	float left = -4f, right = 4f;
 	float bottom, top;
 	float near = -10, far = 1000;
 
+	double x = left, dx = 0.05; // Quaderposition
+
+	Quaternion qStart = Quaternion.fromAxis(new Vec3(1, 0, 0), 10);
+	Quaternion qEnd = Quaternion.fromAxis(new Vec3(0, 1, 0), 30);
+	double t = 0, dt = 0.1; // SLERP Parameter
+
 	// LookAt-Parameter fuer Kamera-System
-	Vec3 A = new Vec3(0, 0, 100); // Kamera-Pos. (Auge)
+	Vec3 A = new Vec3(0, 0, 4); // Kamera-Pos. (Auge)
 	Vec3 B = new Vec3(0, 0, 0); // Zielpunkt
 	Vec3 up = new Vec3(0, 1, 0); // up-Richtung
 
-	class LorenzDynamics extends Dynamics {
-
-		@Override
-		public double[] f(double[] x) {
-			// TODO Auto-generated method stub
-			double x1 = x[0], x2 = x[1], x3 = x[2];
-			double[] y = { 10 * x2 - 10 * x1, 28 * x1 - x2 - x1 * x3, x1 * x2 - 8 * x3 / 3 };
-
-			return y;
-		}
-
-		public void zeichneBahnlo(MyGLBase1 mygl, GL3 gl, double xStart, double yStart, double zStart, double dt,
-				double nSchritte) {
-
-			mygl.rewindBuffer(gl);
-
-			double[] x = { xStart, yStart, zStart };
-
-			mygl.putVertex((float) x[0], (float) x[1], (float) x[2]);
-			for (int i = 1; i < nSchritte; i++) {
-				x = runge(x, dt);
-				mygl.putVertex((float) x[0], (float) x[1], (float) x[2]);
-			}
-			mygl.copyBuffer(gl);
-			mygl.drawArrays(gl, GL3.GL_LINE_STRIP);
-
-		}
-
-	}
-
-	LorenzDynamics lorenzo = new LorenzDynamics();
-
 	// --------- Methoden ----------------------------------
 
-	public Lorenz() // Konstruktor
+	public SlerpTest() // Konstruktor
 	{
 		createFrame();
 	}
@@ -94,23 +69,6 @@ public class Lorenz implements WindowListener, GLEventListener, KeyListener {
 		canvas.addKeyListener(this);
 	};
 
-	// ------- Klothoide (Cornu'sche Spirale) ------------
-	public void zeichneBahn(GL3 gl, double xStart, double yStart, double zStart, double phi, double ds,
-			double kruemmung, double dKruemmung, int nPunkte) {
-		double x = xStart, y = yStart, z = zStart;
-		mygl.rewindBuffer(gl);
-		mygl.putVertex((float) x, (float) y, (float) z);
-		for (int i = 1; i < nPunkte; i++) {
-			x += Math.cos(phi) * ds;
-			y += Math.sin(phi) * ds;
-			mygl.putVertex((float) x, (float) y, (float) z);
-			phi += kruemmung * ds;
-			kruemmung += dKruemmung * ds;
-		}
-		mygl.copyBuffer(gl);
-		mygl.drawArrays(gl, GL3.GL_LINE_STRIP);
-	}
-
 	// ---------- OpenGL-Events ---------------------------
 
 	@Override
@@ -121,14 +79,14 @@ public class Lorenz implements WindowListener, GLEventListener, KeyListener {
 		System.out.println("Shading Language: " + gl.glGetString(gl.GL_SHADING_LANGUAGE_VERSION));
 		System.out.println();
 		gl.glEnable(GL3.GL_DEPTH_TEST);
-		gl.glClearColor(0.2f, 0.2f, 1.0f, 1);
+		gl.glClearColor(0, 0, 1, 1);
 		int programId = MyShaders.initShaders(gl, vShader, fShader);
 		mygl = new MyGLBase1(gl, programId, maxVerts);
-		FPSAnimator anim = new FPSAnimator(canvas, 200, true); // Animations-Thread,
-																// 200
-																// Frames/sek
-		anim.start();
+		quad = new Quader(mygl);
+		rotk = new RotKoerper(mygl);
 
+		FPSAnimator anim = new FPSAnimator(canvas, 200, true);
+		anim.start();
 	}
 
 	@Override
@@ -136,19 +94,30 @@ public class Lorenz implements WindowListener, GLEventListener, KeyListener {
 		GL3 gl = drawable.getGL().getGL3();
 		gl.glClear(GL3.GL_COLOR_BUFFER_BIT | GL3.GL_DEPTH_BUFFER_BIT);
 		M = Mat4.ID;
-		mygl.setM(gl, M);
 		Mat4 R1 = Mat4.rotate(-elevation, 1, 0, 0);
 		Mat4 R2 = Mat4.rotate(azimut, 0, 1, 0);
-		Mat4 R = R1.preMultiply(R2);
-		M = Mat4.lookAt(R.transform(A), B, R.transform(up));
-		mygl.setM(gl, M);
-		mygl.setColor(1, 1, 1);
-		mygl.drawAxis(gl, 100, 100, 100); // Koordinatenachsen
-		mygl.setM(gl, M);
-		mygl.setColor(0, 0, 1);
-		lorenzo.zeichneBahnlo(mygl, gl, 40, 10, 10, 0.01f, 1000);
+		Mat4 R = R1.postMultiply(R2);
 
-		// zeichneBahn(gl, -20, -20, 0, 0, 1, 0, 0.0005f, 500); // Spirale
+		mygl.setM(gl, Mat4.lookAt(R.transform(A), B, R.transform(up))); // Blickrichtung
+		mygl.setColor(1, 0, 0);
+		mygl.setShadingLevel(gl, 0);
+		mygl.drawAxis(gl, 2, 2, 2); // Koordinatenachsen
+		mygl.setShadingParam(gl, 0.2f, 0.8f);
+		mygl.setShadingLevel(gl, 1);
+		M = M.postMultiply(Mat4.translate((float) x, 0, 0));
+
+		Quaternion qInter = qStart.slerp(qEnd, (float) t);
+
+		Vec4 rot = qInter.getAxisAngle();
+		M = M.postMultiply(Mat4.rotate(rot.w, rot.x, rot.y, rot.z));
+
+		t += dt;
+
+		mygl.setM(gl, M);
+
+		quad.zeichne(gl, 0.8f, 0.5f, 1.6f, true);
+		x += dx; // B
+
 	}
 
 	@Override
@@ -169,7 +138,7 @@ public class Lorenz implements WindowListener, GLEventListener, KeyListener {
 	// ----------- main-Methode ---------------------------
 
 	public static void main(String[] args) {
-		new Lorenz();
+		new SlerpTest();
 	}
 
 	// --------- Window-Events --------------------
@@ -197,7 +166,9 @@ public class Lorenz implements WindowListener, GLEventListener, KeyListener {
 	public void windowOpened(WindowEvent e) {
 	}
 
+	@Override
 	public void keyPressed(KeyEvent e) {
+		// TODO Auto-generated method stub
 		int key = e.getKeyCode();
 		switch (key) {
 		case KeyEvent.VK_UP:
@@ -206,19 +177,20 @@ public class Lorenz implements WindowListener, GLEventListener, KeyListener {
 		case KeyEvent.VK_DOWN:
 			elevation--;
 			break;
-		case KeyEvent.VK_LEFT:
-			azimut--;
-			break;
-		case KeyEvent.VK_RIGHT:
-			azimut++;
-			break;
 		}
 	}
 
+	@Override
 	public void keyReleased(KeyEvent e) {
+		// TODO Auto-generated method stub
+
 	}
 
+	// es braucht in diesem Fall nur diese Methode
+	@Override
 	public void keyTyped(KeyEvent e) {
+		// TODO Auto-generated method stub
+
 	}
 
 }
