@@ -30,7 +30,7 @@ public class FlyingQuaders implements WindowListener, GLEventListener, KeyListen
 	Quader quad;
 	RotKoerper rotk;
 	Quader quad2;
-	
+
 	Stack<Mat4> matrixStack = new Stack<>();
 
 	Mat4 M; // ModelView-Matrix
@@ -40,8 +40,14 @@ public class FlyingQuaders implements WindowListener, GLEventListener, KeyListen
 	float left = -4f, right = 4f;
 	float bottom, top;
 	float near = -10, far = 1000;
+	
+	double test = 0, dtest = 0.03;
 
+	
 	double x = left, dx = 0.05; // Quaderposition
+	double y = right, dy = 0.03;
+	double z = top, dz = 0.02;
+	double e = bottom, ez = 0.02;
 
 	double quaderLength = 2, quaderWidth = 2, quaderHeight = 2;
 	GyroDynamics gyro;
@@ -90,75 +96,94 @@ public class FlyingQuaders implements WindowListener, GLEventListener, KeyListen
 		mygl = new MyGLBase1(gl, programId, maxVerts);
 		quad = new Quader(mygl);
 		quad2 = new Quader(mygl);
-		
+
 		rotk = new RotKoerper(mygl);
-		
-		double paramA = (quaderLength * quaderLength + quaderWidth * quaderWidth) / 12;
-		double paramB = (quaderLength * quaderLength + quaderHeight * quaderHeight) / 12;
-		double paramC = (quaderWidth * quaderWidth + quaderHeight * quaderHeight) / 12;
-		gyro = new GyroDynamics(paramA, paramB, paramC);
+
+		double a = (quaderLength * quaderLength + quaderWidth * quaderWidth) / 12;
+		double b = (quaderLength * quaderLength + quaderHeight * quaderHeight) / 12;
+		double c = (quaderWidth * quaderWidth + quaderHeight * quaderHeight) / 12;
+		gyro = new GyroDynamics(a, b, c);
 		gyro.setState(1, 2, 4, 30, 3, 1, 2);
-		
+
 		FPSAnimator anim = new FPSAnimator(canvas, 200, true);
 		anim.start();
 	}
-
+	
+	Circle lightBulb = new Circle(0.4f, new Point(4, 4, 4), new Point(3, 3, 3));
+	
 	@Override
 	public void display(GLAutoDrawable drawable) {
 		GL3 gl = drawable.getGL().getGL3();
 		gl.glClear(GL3.GL_COLOR_BUFFER_BIT | GL3.GL_DEPTH_BUFFER_BIT);
 		M = Mat4.ID;
+		
+		
+		// set variables for perspectives
 		Mat4 R1 = Mat4.rotate(-elevation, 1, 0, 0);
 		Mat4 R2 = Mat4.rotate(azimut, 0, 1, 0);
 		Mat4 R = R1.postMultiply(R2);
 
 		mygl.setM(gl, Mat4.lookAt(R.transform(A), B, R.transform(up))); // Blickrichtung
 		matrixStack.push(M);
-		mygl.setColor(1, 0, 0);
-		mygl.setShadingLevel(gl, 0);
+		mygl.setColor(1, 1, 0);
+		//mygl.setShadingLevel(gl, 0);
 		mygl.drawAxis(gl, 2, 2, 2); // Koordinatenachsen
+		
+		// mygl.setLightPosition(gl, 2, 2, 2);
+		Vec3 light = new Vec3(2, 2, 4);
+		lightBulb.draw(gl, mygl);
 		mygl.setShadingParam(gl, 0.2f, 0.8f);
 		mygl.setShadingLevel(gl, 1);
-		
-	
-		M = M.postMultiply(Mat4.translate((float) x, 0, 0));
+		mygl.setColor(1, 1, 0);
+																// // A -->
 		matrixStack.push(M);
-		
-		
-		gyro.move(0.1);
+		// create first quader
+		M = M.postMultiply(Mat4.translate((float) x, (float)test, 0));
+		matrixStack.push(M);
+		gyro.move(0.0025);
 		double[] states = gyro.getState();
 		M = matrixStack.pop();
 		M = M.postMultiply(Mat4.rotate((float) states[3], new Vec3(states[4], states[5], states[6])));
+
 		mygl.setM(gl, M);
+		
 		quad.zeichne(gl, (float) quaderLength, (float) quaderWidth, (float) quaderHeight, true);
 		M = matrixStack.pop();
 		mygl.setM(gl, M);
-		
+
+		// create second quader
 		matrixStack.push(M);
-		
-		gyro.move(0.4);
+		M = M.postMultiply(Mat4.translate((float) y, 0, 0));
+		gyro.move(0.0005);
 		M = M.postMultiply(Mat4.rotate((float) states[3], new Vec3(states[4], states[5], states[6])));
+
+	
 		mygl.setM(gl, M);
-		quad2.zeichne(gl, (float) quaderLength+1, (float) quaderWidth+1, (float) quaderHeight+1, true);
+		mygl.setShadingLevel(gl, 1);
+		mygl.setLightPosition(gl, light.x, light.y, light.z);
+		quad2.zeichne(gl, (float) quaderLength - 1, (float) quaderWidth - 1, (float) quaderHeight - 1, true);
+
 		mygl.setM(gl, M);
+
 		M = matrixStack.pop();
 		mygl.setM(gl, M);
 		mygl.setColor(1, 0, 0);
 
-		//zeichneLinie(gl, new Vec3(states[0], states[1], states[2]));
-		
-		x += dx; // B
+		x += dx;
+		y -= dy;
+		//test += test;
+		test -= dtest;
 
-	}
+		if (x > right) {
+			test = top;
+			x = left;
+		}
+		if (y < left) {
+			test = top;
+			y = right;
 
-	public void zeichneLinie(GL3 gl, Vec3 vec) {
-		// System.out.println(vec.x + ";" + vec.y + ";" + vec.z);
-		mygl.rewindBuffer(gl);
-		mygl.putVertex(0, 0, 0); // Startpunkt -> muss mit Matrizen verschoben
-									// werden
-		mygl.putVertex(vec.x, vec.y, vec.z);
-		mygl.copyBuffer(gl);
-		mygl.drawArrays(gl, GL3.GL_LINE_STRIP);
+		}
+
 	}
 
 	@Override
