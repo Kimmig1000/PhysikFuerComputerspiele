@@ -3,6 +3,8 @@ package programs;
 //  -------------   JOGL 3D-Programm  -------------------
 import java.awt.*;
 import java.awt.event.*;
+import java.util.Stack;
+
 import com.jogamp.opengl.*;
 import ch.fhnw.util.math.*;
 import com.jogamp.opengl.awt.*;
@@ -27,6 +29,9 @@ public class FlyingQuaders implements WindowListener, GLEventListener, KeyListen
 
 	Quader quad;
 	RotKoerper rotk;
+	Quader quad2;
+	
+	Stack<Mat4> matrixStack = new Stack<>();
 
 	Mat4 M; // ModelView-Matrix
 	Mat4 P; // Projektions-Matrix
@@ -84,12 +89,16 @@ public class FlyingQuaders implements WindowListener, GLEventListener, KeyListen
 		int programId = MyShaders.initShaders(gl, vShader, fShader);
 		mygl = new MyGLBase1(gl, programId, maxVerts);
 		quad = new Quader(mygl);
+		quad2 = new Quader(mygl);
+		
 		rotk = new RotKoerper(mygl);
+		
 		double paramA = (quaderLength * quaderLength + quaderWidth * quaderWidth) / 12;
 		double paramB = (quaderLength * quaderLength + quaderHeight * quaderHeight) / 12;
 		double paramC = (quaderWidth * quaderWidth + quaderHeight * quaderHeight) / 12;
 		gyro = new GyroDynamics(paramA, paramB, paramC);
 		gyro.setState(1, 2, 4, 30, 3, 1, 2);
+		
 		FPSAnimator anim = new FPSAnimator(canvas, 200, true);
 		anim.start();
 	}
@@ -104,25 +113,40 @@ public class FlyingQuaders implements WindowListener, GLEventListener, KeyListen
 		Mat4 R = R1.postMultiply(R2);
 
 		mygl.setM(gl, Mat4.lookAt(R.transform(A), B, R.transform(up))); // Blickrichtung
+		matrixStack.push(M);
 		mygl.setColor(1, 0, 0);
 		mygl.setShadingLevel(gl, 0);
 		mygl.drawAxis(gl, 2, 2, 2); // Koordinatenachsen
 		mygl.setShadingParam(gl, 0.2f, 0.8f);
 		mygl.setShadingLevel(gl, 1);
+		
+	
 		M = M.postMultiply(Mat4.translate((float) x, 0, 0));
-
+		matrixStack.push(M);
+		
+		
 		gyro.move(0.1);
 		double[] states = gyro.getState();
-
+		M = matrixStack.pop();
 		M = M.postMultiply(Mat4.rotate((float) states[3], new Vec3(states[4], states[5], states[6])));
 		mygl.setM(gl, M);
 		quad.zeichne(gl, (float) quaderLength, (float) quaderWidth, (float) quaderHeight, true);
-
+		M = matrixStack.pop();
+		mygl.setM(gl, M);
+		
+		matrixStack.push(M);
+		
+		gyro.move(0.4);
+		M = M.postMultiply(Mat4.rotate((float) states[3], new Vec3(states[4], states[5], states[6])));
+		mygl.setM(gl, M);
+		quad2.zeichne(gl, (float) quaderLength+1, (float) quaderWidth+1, (float) quaderHeight+1, true);
+		mygl.setM(gl, M);
+		M = matrixStack.pop();
 		mygl.setM(gl, M);
 		mygl.setColor(1, 0, 0);
 
-		zeichneLinie(gl, new Vec3(states[0], states[1], states[2]));
-
+		//zeichneLinie(gl, new Vec3(states[0], states[1], states[2]));
+		
 		x += dx; // B
 
 	}
@@ -155,7 +179,7 @@ public class FlyingQuaders implements WindowListener, GLEventListener, KeyListen
 	// ----------- main-Methode ---------------------------
 
 	public static void main(String[] args) {
-		new SlerpTest();
+		new FlyingQuaders();
 	}
 
 	// --------- Window-Events --------------------
