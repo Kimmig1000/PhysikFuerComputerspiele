@@ -12,6 +12,25 @@ public class GyroDynamics extends Dynamics {
 		this.I3 = I3;
 	}
 
+	public GyroDynamics(ModifyableQuader quader) {
+		this(quader.getM(), quader.getA(), quader.getB(), quader.getC());
+	}
+
+	public GyroDynamics(float m, float a, float b, float c) {
+		I1 = 1.0f / 12.0f * m * (b * b + c * c);
+		I2 = 1.0f / 12.0f * m * (a * a + c * c);
+		I3 = 1.0f / 12.0f * m * (a * a + b * b);
+		// see script p.73
+	}
+
+	public void initState(double w1, double w2, double w3, double phi, double x, double y, double z) {
+		double q0 = Math.cos(0.5 * phi * Math.PI / 180);
+		Vec3 n = new Vec3(x, y, z);
+		n = n.normalize();
+		double s = Math.sin(0.5 * phi * Math.PI / 180);
+		this.x = new double[] { w1, w2, w3, q0, s * n.x, s * n.y, s * n.z };
+	}
+
 	public double[] f(double[] x) {
 		double w1 = x[0], w2 = x[1], w3 = x[2];
 		double q0 = x[3], q1 = x[4], q2 = x[5], q3 = x[6];
@@ -39,5 +58,12 @@ public class GyroDynamics extends Dynamics {
 
 	public void move(double dt) {
 		x = runge(x, dt);
+	}
+
+	public void setGyroDynamics(float m, float a, float b, float c) {
+		I1 = 1.0f / 12.0f * m * (b * b + c * c);
+		I2 = 1.0f / 12.0f * m * (a * a + c * c);
+		I3 = 1.0f / 12.0f * m * (a * a + b * b);
+		// see script p.73
 	}
 }
