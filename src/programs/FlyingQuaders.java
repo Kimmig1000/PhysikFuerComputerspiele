@@ -273,10 +273,16 @@ public class FlyingQuaders implements WindowListener, GLEventListener, KeyListen
 	public void keyTyped(KeyEvent e) {
 		// TODO Auto-generated method stub
 		if ((e.getKeyChar() == 'H') || (e.getKeyChar() == 'h')) {
-			moveSpeedQuad1 += 0.0001;
+			moveSpeedQuad1 += 0.001;
 		}
 		if ((e.getKeyChar() == 'J') || (e.getKeyChar() == 'j')) {
 			moveSpeedQuad2 += 0.001;
+		}
+		if ((e.getKeyChar() == 'K') || (e.getKeyChar() == 'k')) {
+			moveSpeedQuad1 = 0.0025;
+		}
+		if ((e.getKeyChar() == 'L') || (e.getKeyChar() == 'l')) {
+			moveSpeedQuad2 = 0.005;
 		}
 
 		char code = e.getKeyChar();
